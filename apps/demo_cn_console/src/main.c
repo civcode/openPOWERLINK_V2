@@ -124,6 +124,7 @@ static tOplkError initPowerlink(UINT32 cycleLen_p,
 static void       loopMain(void);
 static void       shutdownPowerlink(void);
 
+static void getObjectDictionaryEntries(void);
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
 //============================================================================//
@@ -440,6 +441,8 @@ static void loopMain(void)
 #else
         processSync();
 #endif
+
+        getObjectDictionaryEntries();
     }
 
 #if (TARGET_SYSTEM == _WIN32_)
@@ -554,4 +557,28 @@ static int getOptions(int argc_p,
     return 0;
 }
 
+void getObjectDictionaryEntries() {
+
+    tOplkError ret = kErrorOk;
+
+    tObdSize obdSize;
+    UINT32 longValue;
+
+    // Read cycle length 0x1006.0
+    obdSize = 4;
+    ret = obdu_readEntry(0x1006, 0, &longValue, &obdSize);
+
+    if (ret != kErrorOk) {
+        printf("Error reading OBD entry 0x1006.0\n");
+        printf("Error code: 0x%x\n", ret);	
+        return;
+    }
+
+    gObjectDictionaryCycleLength = longValue;
+    // printf("\n");
+    // printf("0x1006.0: %d\n", longValue);    
+    // printf("\n");
+
+
+}
 /// \}

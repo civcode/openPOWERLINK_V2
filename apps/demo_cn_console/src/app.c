@@ -47,6 +47,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <oplk/debugstr.h>
 #include <eventlog/eventlog.h>
 
+#include <limits.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <time.h>
@@ -58,10 +59,12 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
+#define LATENCY_PRINT_INTERVAL  (1000000L) // interval in microseconds   
 
 //------------------------------------------------------------------------------
 // module global vars
 //------------------------------------------------------------------------------
+UINT32 gObjectDictionaryCycleLength = UINT_MAX;
 
 //------------------------------------------------------------------------------
 // global function prototypes
@@ -390,6 +393,11 @@ void latency(void) {
         return;
     }
 
+    if (gObjectDictionaryCycleLength == UINT_MAX) {
+        printf("Cycle length is not set\n");
+        return;
+    }
+	
     // Get the current time
     clock_gettime(CLOCK_MONOTONIC, &currentTime);
 
@@ -398,7 +406,8 @@ void latency(void) {
         latency = (currentTime.tv_sec - lastTime.tv_sec) * 1000000L;
         latency += (currentTime.tv_nsec - lastTime.tv_nsec) / 1000L;
 
-        latency = abs(latency - LOOP_TIME_MICROSECONDS);
+        // latency = abs(latency - LOOP_TIME_MICROSECONDS);
+        latency = abs(latency - gObjectDictionaryCycleLength);
 
         // Update min, max, and total latency
         if (minLatency == -1 || latency < minLatency) {
@@ -411,9 +420,12 @@ void latency(void) {
         callCount++;
 
         // Print the latency values
-        if (callCount % 20 == 0) {
-            printf("Latency (current) [min, avg, max]: (%3ld us) [%ld, %ld, %ld] us\n", 
+        UINT32 interval = LATENCY_PRINT_INTERVAL / gObjectDictionaryCycleLength;
+        interval == 0 ? interval = 1 : interval; 
+        if (callCount % interval == 0) {
+            printf("\rLatency (current) [min, avg, max]: (%3ld us) [%ld, %ld, %ld] us", 
                 latency, minLatency, totalLatency/callCount, maxLatency);
+            fflush(stdout);
         } 
     }
 
