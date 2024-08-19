@@ -53,6 +53,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "xap.h"
 
+#include <limits.h>
+#include <time.h>
+
 //============================================================================//
 //            G L O B A L   D E F I N I T I O N S                             //
 //============================================================================//
@@ -65,9 +68,13 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define APP_LED_MASK_1          (1 << (APP_LED_COUNT_1 - 1))
 #define MAX_NODES               255
 
+#define LATENCY_PRINT_INTERVAL  (1000000L) // interval in microseconds   
+
 //------------------------------------------------------------------------------
 // module global vars
 //------------------------------------------------------------------------------
+UINT32 gObjectDictionaryCycleLength = UINT_MAX;
+BOOL gIsCN_1_Operational = FALSE;
 
 //------------------------------------------------------------------------------
 // global function prototypes
@@ -103,10 +110,18 @@ static APP_NODE_VAR_T   aNodeVar_l[MAX_NODES];
 static PI_IN*           pProcessImageIn_l;
 static const PI_OUT*    pProcessImageOut_l;
 
+static long minLatency = -1;
+static long maxLatency = 0;
+static long totalLatency = 0;
+static unsigned long callCount = 0;
+
 //------------------------------------------------------------------------------
 // local function prototypes
 //------------------------------------------------------------------------------
 static tOplkError       initProcessImage(void);
+
+static void latency(void);
+
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
@@ -242,6 +257,9 @@ tOplkError processSync(void)
 
     ret = oplk_exchangeProcessImageIn();
 
+    // Calculate the latency
+    latency();
+
     return ret;
 }
 
@@ -295,4 +313,60 @@ static tOplkError initProcessImage(void)
     return ret;
 }
 
+void latency(void) {
+    static struct timespec lastTime = {0, 0};
+    struct timespec currentTime;
+    long latency;
+
+    // Check if stack is operational
+    tNmtState ret = nmtu_getNmtState();
+    if (ret != kNmtMsOperational) {
+        return;
+    }
+
+    if (gObjectDictionaryCycleLength == UINT_MAX) {
+        printf("Cycle length is not set\n");
+        return;
+    }
+
+    if (!gIsCN_1_Operational) {
+        lastTime.tv_sec = 0;
+        lastTime.tv_nsec = 0;
+        return;
+    }
+
+    // Get the current time
+    clock_gettime(CLOCK_MONOTONIC, &currentTime);
+
+    if (lastTime.tv_sec != 0 || lastTime.tv_nsec != 0) {
+        // Calculate the latency in microseconds
+        latency = (currentTime.tv_sec - lastTime.tv_sec) * 1000000L;
+        latency += (currentTime.tv_nsec - lastTime.tv_nsec) / 1000L;
+
+        // latency = abs(latency - LOOP_TIME_MICROSECONDS);
+        latency = abs(latency - gObjectDictionaryCycleLength);
+
+        // Update min, max, and total latency
+        if (minLatency == -1 || latency < minLatency) {
+            minLatency = latency;
+        }
+        if (latency > maxLatency) {
+            maxLatency = latency;
+        }
+        totalLatency += latency;
+        callCount++;
+
+        // Print the latency values
+        UINT32 interval = LATENCY_PRINT_INTERVAL / gObjectDictionaryCycleLength;
+        interval == 0 ? interval = 1 : interval; 
+        if (callCount % interval == 0) {
+            printf("\rLatency (current) [min, avg, max]: (%3ld us) [%ld, %ld, %ld] us", 
+                latency, minLatency, totalLatency/callCount, maxLatency);
+            fflush(stdout);
+        } 
+    }
+
+    // Update the last time to the current time
+    lastTime = currentTime;
+}
 /// \}

@@ -43,6 +43,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 #include "event.h"
 
+#include "app.h"
+
 #include <oplk/oplk.h>
 #include <oplk/debugstr.h>
 
@@ -349,6 +351,11 @@ static tOplkError processNodeEvent(const tOplkApiEventNode* pNode_p,
             printf("Node %d entered state %s\n",
                    pNode_p->nodeId,
                    debugstr_getNmtStateStr(pNode_p->nmtState));
+            if (pNode_p->nodeId == 1 && pNode_p->nmtState == kNmtCsOperational) {
+                gIsCN_1_Operational = TRUE;
+            } else {
+                gIsCN_1_Operational = FALSE;
+            }
             break;
 
         case kNmtNodeEventError:

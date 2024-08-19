@@ -49,6 +49,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stddef.h>
 #include <stdio.h>
+#include <time.h>
 
 //============================================================================//
 //            G L O B A L   D E F I N I T I O N S                             //
@@ -74,6 +75,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //------------------------------------------------------------------------------
 // const defines
 //------------------------------------------------------------------------------
+#define LOOP_TIME_MICROSECONDS (50000L)
 
 //------------------------------------------------------------------------------
 // local types
@@ -101,10 +103,17 @@ static const PI_OUT*    pProcessImageOut_l;
 static UINT8            digitalIn_l;            // 8 bit digital input
 static UINT8            digitalOut_l;           // 8 bit digital output
 
+static long minLatency = -1;
+static long maxLatency = 0;
+static long totalLatency = 0;
+static unsigned long callCount = 0;
+
 //------------------------------------------------------------------------------
 // local function prototypes
 //------------------------------------------------------------------------------
 static tOplkError   initProcessImage(void);
+
+static void latency(void);
 
 //============================================================================//
 //            P U B L I C   F U N C T I O N S                                 //
@@ -175,6 +184,8 @@ tOplkError processSync(void)
     pProcessImageIn_l->digitalIn = digitalIn_l;
 
     ret = oplk_exchangeProcessImageIn();
+
+    latency();
 
     return ret;
 }
@@ -364,6 +375,50 @@ static tOplkError initProcessImage(void)
     fprintf(stderr, "Linking process vars... ok\n\n");
 
     return kErrorOk;
+}
+
+void latency(void) {
+    static struct timespec lastTime = {0, 0};
+    struct timespec currentTime;
+    long latency;
+
+    // Check if stack is operational
+    tNmtState ret = nmtu_getNmtState();
+    if (ret != kNmtCsOperational) {
+        lastTime.tv_sec = 0;
+        lastTime.tv_nsec = 0;
+        return;
+    }
+
+    // Get the current time
+    clock_gettime(CLOCK_MONOTONIC, &currentTime);
+
+    if (lastTime.tv_sec != 0 || lastTime.tv_nsec != 0) {
+        // Calculate the latency in microseconds
+        latency = (currentTime.tv_sec - lastTime.tv_sec) * 1000000L;
+        latency += (currentTime.tv_nsec - lastTime.tv_nsec) / 1000L;
+
+        latency = abs(latency - LOOP_TIME_MICROSECONDS);
+
+        // Update min, max, and total latency
+        if (minLatency == -1 || latency < minLatency) {
+            minLatency = latency;
+        }
+        if (latency > maxLatency) {
+            maxLatency = latency;
+        }
+        totalLatency += latency;
+        callCount++;
+
+        // Print the latency values
+        if (callCount % 20 == 0) {
+            printf("Latency (current) [min, avg, max]: (%3ld us) [%ld, %ld, %ld] us\n", 
+                latency, minLatency, totalLatency/callCount, maxLatency);
+        } 
+    }
+
+    // Update the last time to the current time
+    lastTime = currentTime;
 }
 
 /// \}

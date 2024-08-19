@@ -168,7 +168,7 @@ typedef enum
     kErrorObdVarEntryNotExist       = 0x0037,       ///< The object does not contain a VarEntry structure
     kErrorObdValueTooLow            = 0x0038,       ///< The value to write to an object is too low
     kErrorObdValueTooHigh           = 0x0039,       ///< The value to write to an object is too high
-    kErrorObdValueLengthError       = 0x003A,       ///< The value to write is to long or to short
+    kErrorObdValueLengthError       = 0x003A,       ///< The value to write is too long or too short
     kErrorObdErrnoSet               = 0x003B,       ///< File I/O error occurred and errno is set
     kErrorObdInvalidDcf             = 0x003C,       ///< The device configuration file (CDC) is not valid
     kErrorObdOutOfMemory            = 0x003D,       ///< Out of memory
