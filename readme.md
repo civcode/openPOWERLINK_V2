@@ -48,6 +48,9 @@ The software manual will be created in HTML format under
 The documentation of the latest stack version is also available online on the
 openPOWERLINK website: <http://openpowerlink.sourceforge.net/>
 
+## Dependencies
+- libpcap-dev
+- libsystemd-dev
 
 ## Support
 
