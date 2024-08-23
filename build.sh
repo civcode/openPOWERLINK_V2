@@ -1,8 +1,11 @@
 #!/bin/bash
 
-# Check if build type is provided
-if [ -z "$1" ]; then
+# Check if build type and node type is provided
+if [ -z "$1" ] || [ -z "$2" ]; then
   echo "Usage: $0 <build_type> <node_type> <optional make arguments>"
+  echo "    build_type: [Debug, Release]"
+  echo "    node_type:  [MN, CN]"
+  echo "    optional:   e.g. -j4" 
   exit 1
 fi
 
@@ -12,17 +15,29 @@ if [ "$1" != "Debug" ] && [ "$1" != "Release" ]; then
   exit 1
 fi
 
-# Check if node type is provided
-if [ -z "$2" ]; then
-  echo "Usage: $0 <build_type> <node_type>"
-  exit 1
-fi
-
 # Check that node type matches one of the allowed values
 if [ "$2" != "MN" ] && [ "$2" != "CN" ]; then
   echo "Invalid node type. Allowed values: MN, CN"
   exit 1
 fi
+
+# Check if dependencies are installed
+check_installed() {
+    dpkg -s "$1" &> /dev/null
+
+    if [ $? -eq 0 ]; then
+        echo "$1 is installed."
+    else
+        echo "$1 is not installed. Please install it using the following command:"
+        echo "sudo apt-get install $1"
+    fi
+}
+
+# openPOWERLINK depends on libpcap-dev and libsystemd-dev
+echo "Checking dependencies ..."
+check_installed "libpcap-dev"
+check_installed "libsystemd-dev"
+echo " "
 
 BUILD_TYPE=$1
 NODE_TYPE=$2   
